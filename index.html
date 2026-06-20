@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vibe Front-End Tuner</title>
+  <style>
+    :root {
+      --canvas-width: 1120px;
+      --section-gap: 34px;
+      --card-gap: 16px;
+      --pad-x: 34px;
+      --pad-y: 28px;
+      --card-radius: 18px;
+      --button-radius: 999px;
+      --shadow-strength: 16px;
+      --border-weight: 1px;
+      --heading-size: 38px;
+      --body-size: 15px;
+      --label-size: 12px;
+      --line-height: 1.64;
+      --accent-hue: 24;
+      --surface-warmth: 35;
+      --paper: hsl(var(--surface-warmth) 48% 95%);
+      --paper-2: hsl(var(--surface-warmth) 38% 98%);
+      --ink: #26221d;
+      --muted: #756c62;
+      --hairline: rgba(66, 54, 42, .14);
+      --accent: hsl(var(--accent-hue) 74% 46%);
+      --accent-soft: hsl(var(--accent-hue) 70% 90%);
+      --shadow: 0 calc(var(--shadow-strength) * 1px) calc(var(--shadow-strength) * 2.5px) rgba(54, 42, 31, .11);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(181, 109, 52, .12), transparent 30vw),
+        linear-gradient(135deg, #f4efe7 0%, var(--paper) 52%, #efe8dd 100%);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+    }
+
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    .shell {
+      width: min(100%, 1480px);
+      margin: 0 auto;
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 24px;
+    }
+
+    .panel, .stage, .output-card {
+      border: var(--border-weight) solid var(--hairline);
+      background: rgba(255, 252, 247, .76);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .panel {
+      position: sticky;
+      top: 24px;
+      height: calc(100vh - 56px);
+      overflow: auto;
+      border-radius: 26px;
+      padding: 22px;
+    }
+
+    .brand-kicker {
+      margin: 0 0 8px;
+      font-size: 12px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .panel h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
+      font-size: 29px;
+      line-height: 1.1;
+      letter-spacing: -.03em;
+    }
+
+    .intro {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.72;
+      margin: 14px 0 20px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .button {
+      border: 1px solid var(--hairline);
+      background: rgba(255,255,255,.7);
+      color: var(--ink);
+      border-radius: var(--button-radius);
+      padding: 10px 13px;
+      transition: transform .2s ease, background .2s ease, box-shadow .2s ease;
+    }
+
+    .button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(54,42,31,.08); }
+    .button.primary { background: var(--ink); color: #fffaf2; }
+
+    .group {
+      border-top: 1px solid var(--hairline);
+      padding-top: 16px;
+      margin-top: 16px;
+    }
+
+    .group h2 {
+      margin: 0 0 12px;
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .control { margin: 13px 0; }
+    .control-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 7px;
+      font-size: 13px;
+    }
+    .control strong { font-weight: 650; }
+    .value { color: var(--accent); font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+    .main { min-width: 0; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tab {
+      border: 1px solid var(--hairline);
+      background: rgba(255, 252, 247, .72);
+      border-radius: var(--button-radius);
+      padding: 9px 14px;
+      color: var(--muted);
+    }
+    .tab[aria-selected="true"] {
+      background: var(--ink);
+      color: #fffaf2;
+      box-shadow: var(--shadow);
+    }
+
+    .hint { color: var(--muted); font-size: 13px; }
+
+    .stage {
+      border-radius: 30px;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    .preview {
+      width: min(100%, var(--canvas-width));
+      margin: 0 auto;
+      border-radius: calc(var(--card-radius) + 14px);
+      background: var(--paper-2);
+      border: var(--border-weight) solid var(--hairline);
+      box-shadow: var(--shadow);
+      padding: var(--pad-y) var(--pad-x);
+      min-height: 640px;
+      position: relative;
+      overflow: hidden;
+    }
+    .preview:before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(rgba(78,62,46,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(78,62,46,.028) 1px, transparent 1px);
+      background-size: 26px 26px;
+      pointer-events: none;
+    }
+    .preview > * { position: relative; }
+
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--hairline);
+    }
+    .logo { display: flex; align-items: center; gap: 9px; font-weight: 760; }
+    .mark { width: 24px; height: 24px; border-radius: 9px; background: var(--accent); box-shadow: inset 0 0 0 6px rgba(255,255,255,.3); }
+    .navlinks { display: flex; gap: 8px; color: var(--muted); font-size: var(--label-size); }
+    .navlinks span { padding: 7px 10px; border-radius: var(--button-radius); }
+    .navlinks span:first-child { color: var(--ink); background: var(--accent-soft); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: var(--section-gap);
+      align-items: center;
+      padding: calc(var(--section-gap) * 1.2) 0;
+    }
+    .eyebrow { font-size: var(--label-size); color: var(--accent); letter-spacing: .1em; text-transform: uppercase; font-weight: 800; }
+    .hero h2, .section-title {
+      font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
+      font-size: var(--heading-size);
+      line-height: 1.04;
+      letter-spacing: -.045em;
+      margin: 12px 0 14px;
+    }
+    .copy { color: var(--muted); font-size: var(--body-size); line-height: var(--line-height); }
+    .cta-row { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+    .chip, .cta {
+      border: 1px solid var(--hairline);
+      border-radius: var(--button-radius);
+      padding: 10px 14px;
+      background: rgba(255,255,255,.72);
+      font-size: var(--label-size);
+    }
+    .cta.primary { background: var(--ink); color: #fffaf2; }
+
+    .visual-card, .card, .stat, .form-card {
+      border: var(--border-weight) solid var(--hairline);
+      border-radius: var(--card-radius);
+      background: rgba(255,255,255,.68);
+      box-shadow: 0 calc(var(--shadow-strength) * .5px) calc(var(--shadow-strength) * 1.3px) rgba(54,42,31,.08);
+    }
+    .visual-card { padding: 22px; min-height: 310px; display: grid; align-content: space-between; }
+    .mini-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--card-gap); }
+    .tile { min-height: 92px; border-radius: calc(var(--card-radius) - 5px); background: var(--accent-soft); padding: 12px; color: rgba(38,34,29,.7); font-size: var(--label-size); }
+    .tile:nth-child(2), .tile:nth-child(3) { background: rgba(38,34,29,.07); }
+    .line-art { height: 94px; border: 1px dashed rgba(38,34,29,.18); border-radius: 999px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-family: Georgia, serif; font-size: 54px; }
+
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--card-gap); }
+    .card { padding: 18px; transition: transform .2s ease, box-shadow .2s ease; }
+    .card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+    .card h3 { margin: 0 0 8px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); font-size: calc(var(--body-size) - 1px); line-height: var(--line-height); }
+
+    .dashboard, .form-view { display: none; }
+    body[data-view="dashboard"] .product { display: none; }
+    body[data-view="dashboard"] .dashboard { display: block; }
+    body[data-view="form"] .product { display: none; }
+    body[data-view="form"] .form-view { display: block; }
+
+    .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--card-gap); margin: var(--section-gap) 0; }
+    .stat { padding: 16px; }
+    .stat b { display: block; font-size: 26px; margin-top: 8px; }
+    .dash-main { display: grid; grid-template-columns: 1.4fr .8fr; gap: var(--card-gap); }
+    .chart { padding: 20px; min-height: 290px; }
+    .bars { height: 190px; display: flex; align-items: end; gap: 12px; margin-top: 20px; }
+    .bar { flex: 1; border-radius: 999px 999px 10px 10px; background: linear-gradient(180deg, var(--accent), var(--accent-soft)); min-height: 28px; }
+    .bar:nth-child(1){height:40%}.bar:nth-child(2){height:68%}.bar:nth-child(3){height:52%}.bar:nth-child(4){height:84%}.bar:nth-child(5){height:61%}.bar:nth-child(6){height:76%}
+    .list { padding: 18px; }
+    .list-item { padding: 14px 0; border-bottom: 1px solid var(--hairline); color: var(--muted); font-size: var(--body-size); }
+    .list-item:last-child { border-bottom: 0; }
+
+    .form-layout { display: grid; grid-template-columns: .9fr 1.1fr; gap: var(--section-gap); align-items: start; margin-top: var(--section-gap); }
+    .form-card { padding: 22px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: var(--label-size); color: var(--muted); margin-bottom: 7px; }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      border: 1px solid var(--hairline);
+      background: rgba(255,255,255,.78);
+      border-radius: calc(var(--card-radius) - 7px);
+      padding: 12px 13px;
+      color: var(--ink);
+      outline: none;
+    }
+    .field textarea { min-height: 118px; resize: vertical; }
+
+    .outputs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+    .output-card { border-radius: 24px; padding: 16px; min-width: 0; }
+    .output-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .output-head h2 { margin: 0; font-size: 15px; }
+    pre {
+      margin: 0;
+      max-height: 260px;
+      overflow: auto;
+      padding: 13px;
+      border-radius: 16px;
+      background: rgba(38,34,29,.92);
+      color: #fff7eb;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%) translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      background: var(--ink);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 999px;
+      transition: .2s ease;
+      z-index: 10;
+      font-size: 13px;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 980px) {
+      .shell { grid-template-columns: 1fr; padding: 14px; }
+      .panel { position: static; height: auto; }
+      .hero, .dash-main, .form-layout { grid-template-columns: 1fr; }
+      .cards, .dash-grid, .outputs { grid-template-columns: 1fr; }
+      .topbar { align-items: start; flex-direction: column; }
+      .preview { padding: 22px; }
+      .nav { align-items: start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body data-view="product">
+  <div class="shell">
+    <aside class="panel">
+      <p class="brand-kicker">Vibe Coding Helper</p>
+      <h1>前端视觉调参台</h1>
+      <p class="intro">先用滑杆把页面调到你脑海里的感觉，再复制 CSS Token 或 Prompt 参数给 AI。它适合解决“我描述的效果”和“AI 做出来的效果”差距太大的问题。</p>
+      <div class="actions">
+        <button class="button primary" id="copyCssTop">复制 CSS</button>
+        <button class="button" id="copyPromptTop">复制提示词</button>
+        <button class="button" id="savePreset">保存当前</button>
+        <button class="button" id="resetAll">重置参数</button>
+      </div>
+      <div id="controls"></div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="tabs" role="tablist" aria-label="预览切换">
+          <button class="tab" data-view="product" aria-selected="true">产品页</button>
+          <button class="tab" data-view="dashboard" aria-selected="false">仪表盘</button>
+          <button class="tab" data-view="form" aria-selected="false">表单</button>
+        </div>
+        <div class="hint">单文件 HTML，可直接打开使用。</div>
+      </div>
+
+      <section class="stage">
+        <div class="preview">
+          <section class="product">
+            <div class="nav">
+              <div class="logo"><span class="mark"></span> Aleksi Lab</div>
+              <div class="navlinks"><span>Works</span><span>Notes</span><span>System</span></div>
+            </div>
+            <div class="hero">
+              <div>
+                <div class="eyebrow">Visual Token Preview</div>
+                <h2>把模糊的审美感觉，调成 AI 看得懂的前端参数。</h2>
+                <p class="copy">你可以调页面宽度、留白、字号、行高、圆角、阴影和颜色温度。调好后复制参数，让 AI 更稳定地复刻你想要的界面气质。</p>
+                <div class="cta-row"><span class="cta primary">复制给 AI</span><span class="cta">继续微调</span></div>
+              </div>
+              <div class="visual-card">
+                <div class="mini-grid"><div class="tile">Spacing</div><div class="tile">Radius</div><div class="tile">Type</div><div class="tile">Shadow</div></div>
+                <div class="line-art">∞</div>
+              </div>
+            </div>
+            <div class="cards">
+              <article class="card"><h3>参数化审美</h3><p>把“更舒服一点”变成明确的尺寸、层级与比例。</p></article>
+              <article class="card"><h3>减少 AI 漂移</h3><p>每次修改都围绕同一组 token，而不是重新猜风格。</p></article>
+              <article class="card"><h3>可复用工作流</h3><p>适合个人网站、作品集、表单和仪表盘的前端改造。</p></article>
+            </div>
+          </section>
+
+          <section class="dashboard">
+            <div class="nav"><div class="logo"><span class="mark"></span> Dashboard</div><div class="navlinks"><span>Overview</span><span>Tasks</span><span>Export</span></div></div>
+            <h2 class="section-title">视觉参数状态</h2>
+            <p class="copy">用仪表盘检查同一组 token 在数据密集界面里的可读性、卡片密度和层级关系。</p>
+            <div class="dash-grid">
+              <div class="stat"><span class="eyebrow">Width</span><b id="statWidth">1120</b></div>
+              <div class="stat"><span class="eyebrow">Gap</span><b id="statGap">34</b></div>
+              <div class="stat"><span class="eyebrow">Type</span><b id="statType">38</b></div>
+              <div class="stat"><span class="eyebrow">Warmth</span><b id="statWarm">35</b></div>
+            </div>
+            <div class="dash-main">
+              <div class="chart card"><h3>界面节奏</h3><div class="bars"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div></div>
+              <div class="list card"><h3>AI 交付检查</h3><div class="list-item">字号是否过大</div><div class="list-item">卡片是否太重</div><div class="list-item">留白是否舒服</div><div class="list-item">选中状态是否明确</div></div>
+            </div>
+          </section>
+
+          <section class="form-view">
+            <div class="nav"><div class="logo"><span class="mark"></span> Form Preview</div><div class="navlinks"><span>Draft</span><span>Review</span><span>Submit</span></div></div>
+            <div class="form-layout">
+              <div><div class="eyebrow">Prompt Builder</div><h2 class="section-title">把调好的视觉参数交给 AI。</h2><p class="copy">表单预览用来检查输入框、按钮、说明文字和卡片容器在同一套 token 下是否协调。</p></div>
+              <form class="form-card">
+                <div class="field"><label>项目名称</label><input value="Aleksi Lab visual refinement" /></div>
+                <div class="field"><label>界面类型</label><select><option>作品集 / Portfolio</option><option>仪表盘 / Dashboard</option><option>文章阅读页 / Article</option></select></div>
+                <div class="field"><label>给 AI 的要求</label><textarea>请按这组 CSS token 调整页面，不改内容结构，只优化视觉层级、留白、字号、圆角、阴影和颜色温度。</textarea></div>
+                <button type="button" class="button primary">生成交付参数</button>
+              </form>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="outputs">
+        <div class="output-card">
+          <div class="output-head"><h2>CSS Token</h2><button class="button" id="copyCss">复制</button></div>
+          <pre id="cssOutput"></pre>
+        </div>
+        <div class="output-card">
+          <div class="output-head"><h2>Prompt 参数</h2><button class="button" id="copyPrompt">复制</button></div>
+          <pre id="promptOutput"></pre>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast">已复制</div>
+
+  <script>
+    const groups = [
+      { title: 'Layout / 布局', items: [
+        ['canvasWidth','页面宽度',760,1380,10,'px'],
+        ['sectionGap','区块间距',18,72,1,'px'],
+        ['cardGap','卡片间距',8,34,1,'px'],
+        ['padX','横向留白',16,64,1,'px'],
+        ['padY','纵向留白',14,58,1,'px']
+      ]},
+      { title: 'Typography / 字体', items: [
+        ['headingSize','标题字号',26,56,1,'px'],
+        ['bodySize','正文字号',13,19,1,'px'],
+        ['labelSize','标签字号',10,14,1,'px'],
+        ['lineHeight','正文行高',1.35,1.9,0.01,'']
+      ]},
+      { title: 'Surface / 质感', items: [
+        ['cardRadius','卡片圆角',6,30,1,'px'],
+        ['buttonRadius','按钮圆角',4,40,1,'px'],
+        ['shadowStrength','阴影强度',0,34,1,'px'],
+        ['borderWeight','描边粗细',0,3,1,'px']
+      ]},
+      { title: 'Color / 色彩', items: [
+        ['accentHue','强调色相',0,360,1,'°'],
+        ['surfaceWarmth','纸面暖度',20,48,1,'']
+      ]}
+    ];
+
+    const defaults = {
+      canvasWidth:1120, sectionGap:34, cardGap:16, padX:34, padY:28,
+      headingSize:38, bodySize:15, labelSize:12, lineHeight:1.64,
+      cardRadius:18, buttonRadius:40, shadowStrength:16, borderWeight:1,
+      accentHue:24, surfaceWarmth:35
+    };
+
+    let state = { ...defaults, ...loadState() };
+    const root = document.documentElement;
+    const controls = document.getElementById('controls');
+    const cssOutput = document.getElementById('cssOutput');
+    const promptOutput = document.getElementById('promptOutput');
+    const toast = document.getElementById('toast');
+
+    function loadState(){
+      try { return JSON.parse(localStorage.getItem('vibe-front-end-tuner') || '{}'); }
+      catch { return {}; }
+    }
+    function saveState(){ localStorage.setItem('vibe-front-end-tuner', JSON.stringify(state)); }
+    function cssVars(){
+      return `:root {\n  --canvas-width: ${state.canvasWidth}px;\n  --section-gap: ${state.sectionGap}px;\n  --card-gap: ${state.cardGap}px;\n  --pad-x: ${state.padX}px;\n  --pad-y: ${state.padY}px;\n  --card-radius: ${state.cardRadius}px;\n  --button-radius: ${state.buttonRadius}px;\n  --shadow-strength: ${state.shadowStrength}px;\n  --border-weight: ${state.borderWeight}px;\n  --heading-size: ${state.headingSize}px;\n  --body-size: ${state.bodySize}px;\n  --label-size: ${state.labelSize}px;\n  --line-height: ${state.lineHeight};\n  --accent-hue: ${state.accentHue};\n  --surface-warmth: ${state.surfaceWarmth};\n}`;
+    }
+    function promptText(){
+      return `请按下面这组视觉参数重构/优化前端页面，不要随意改变内容结构。\n\n视觉目标：温暖、克制、干净、有编辑感，减少 AI 生成 UI 的漂移。\n\n参数：\n- 页面最大宽度：${state.canvasWidth}px\n- 区块间距：${state.sectionGap}px\n- 卡片间距：${state.cardGap}px\n- 横向留白：${state.padX}px\n- 纵向留白：${state.padY}px\n- 标题字号：${state.headingSize}px\n- 正文字号：${state.bodySize}px\n- 标签字号：${state.labelSize}px\n- 正文行高：${state.lineHeight}\n- 卡片圆角：${state.cardRadius}px\n- 按钮圆角：${state.buttonRadius}px\n- 阴影强度：${state.shadowStrength}px\n- 描边粗细：${state.borderWeight}px\n- 强调色相：${state.accentHue}\n- 纸面暖度：${state.surfaceWarmth}\n\n请优先调整 CSS token、间距系统、字号层级、卡片质感、hover 状态和按钮选中状态。`;
+    }
+    function renderControls(){
+      controls.innerHTML = groups.map(group => `
+        <section class="group"><h2>${group.title}</h2>
+          ${group.items.map(([key,label,min,max,step,unit]) => `
+            <div class="control">
+              <div class="control-head"><strong>${label}</strong><span class="value" id="value-${key}">${state[key]}${unit}</span></div>
+              <input type="range" data-key="${key}" min="${min}" max="${max}" step="${step}" value="${state[key]}">
+            </div>
+          `).join('')}
+        </section>
+      `).join('');
+      controls.querySelectorAll('input[type="range"]').forEach(input => {
+        input.addEventListener('input', () => {
+          const key = input.dataset.key;
+          state[key] = Number(input.value);
+          update();
+        });
+      });
+    }
+    function update(){
+      root.style.setProperty('--canvas-width', state.canvasWidth + 'px');
+      root.style.setProperty('--section-gap', state.sectionGap + 'px');
+      root.style.setProperty('--card-gap', state.cardGap + 'px');
+      root.style.setProperty('--pad-x', state.padX + 'px');
+      root.style.setProperty('--pad-y', state.padY + 'px');
+      root.style.setProperty('--card-radius', state.cardRadius + 'px');
+      root.style.setProperty('--button-radius', state.buttonRadius + 'px');
+      root.style.setProperty('--shadow-strength', state.shadowStrength + 'px');
+      root.style.setProperty('--border-weight', state.borderWeight + 'px');
+      root.style.setProperty('--heading-size', state.headingSize + 'px');
+      root.style.setProperty('--body-size', state.bodySize + 'px');
+      root.style.setProperty('--label-size', state.labelSize + 'px');
+      root.style.setProperty('--line-height', state.lineHeight);
+      root.style.setProperty('--accent-hue', state.accentHue);
+      root.style.setProperty('--surface-warmth', state.surfaceWarmth);
+      cssOutput.textContent = cssVars();
+      promptOutput.textContent = promptText();
+      document.getElementById('statWidth').textContent = state.canvasWidth;
+      document.getElementById('statGap').textContent = state.sectionGap;
+      document.getElementById('statType').textContent = state.headingSize;
+      document.getElementById('statWarm').textContent = state.surfaceWarmth;
+      for (const group of groups) for (const [key,, , , , unit] of group.items) {
+        const el = document.getElementById('value-' + key);
+        if (el) el.textContent = state[key] + unit;
+        const input = controls.querySelector(`[data-key="${key}"]`);
+        if (input) input.value = state[key];
+      }
+      saveState();
+    }
+    async function copyText(text){
+      try { await navigator.clipboard.writeText(text); }
+      catch {
+        const area = document.createElement('textarea');
+        area.value = text; document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove();
+      }
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1300);
+    }
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.body.dataset.view = tab.dataset.view;
+        document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t === tab)));
+      });
+    });
+    document.getElementById('copyCss').onclick = () => copyText(cssVars());
+    document.getElementById('copyCssTop').onclick = () => copyText(cssVars());
+    document.getElementById('copyPrompt').onclick = () => copyText(promptText());
+    document.getElementById('copyPromptTop').onclick = () => copyText(promptText());
+    document.getElementById('savePreset').onclick = () => { saveState(); toast.textContent = '已保存当前参数'; toast.classList.add('show'); setTimeout(() => { toast.classList.remove('show'); toast.textContent = '已复制'; }, 1300); };
+    document.getElementById('resetAll').onclick = () => { state = { ...defaults }; update(); };
+    renderControls();
+    update();
+  </script>
+</body>
+</html>
